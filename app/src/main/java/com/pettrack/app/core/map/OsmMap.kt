@@ -2,6 +2,7 @@ package com.pettrack.app.core.map
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -25,9 +26,11 @@ data class MapMarker(
 )
 
 /**
- * Minimal OpenStreetMap (osmdroid) map for Compose: renders markers and an optional
- * search-radius circle around [center]. `setTilesScaledToDpi` keeps tiles legible on
- * high-density screens (fixes the tiny/blurry tiles seen on the emulator).
+ * Minimal OpenStreetMap (osmdroid) map for Compose.
+ *
+ * IMPORTANT: the map is only re-centered when [center] actually changes (not on every
+ * recomposition) so the user's panning is preserved — otherwise unrelated state updates
+ * (e.g. the notifications badge polling) would keep yanking the map back to center.
  */
 @Composable
 fun OsmMap(
@@ -48,8 +51,12 @@ fun OsmMap(
             setTilesScaledToDpi(true)
             setUseDataConnection(true)
             controller.setZoom(zoom)
+            controller.setCenter(GeoPoint(center.first, center.second))
         }
     }
+
+    // Tracks what has already been applied so update() is a no-op when nothing changed.
+    val applied = remember { mutableStateOf<Triple<Pair<Double, Double>, List<MapMarker>, Double?>?>(null) }
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -67,36 +74,42 @@ fun OsmMap(
         factory = { mapView },
         modifier = modifier,
         update = { map ->
-            val centerPoint = GeoPoint(center.first, center.second)
-            map.controller.setCenter(centerPoint)
-            map.overlays.clear()
-
-            radiusMeters?.let { r ->
-                val circle = Polygon().apply {
-                    points = Polygon.pointsAsCircle(centerPoint, r)
-                    fillPaint.color = 0x331B6C5A.toInt()
-                    outlinePaint.color = 0xFF1B6C5A.toInt()
-                    outlinePaint.strokeWidth = 3f
+            val snapshot = Triple(center, markers, radiusMeters)
+            if (applied.value != snapshot) {
+                // Only re-center when the center itself changed (keeps user panning).
+                if (applied.value?.first != center) {
+                    map.controller.setCenter(GeoPoint(center.first, center.second))
                 }
-                map.overlays.add(circle)
-            }
+                map.overlays.clear()
 
-            val pin = ContextCompat.getDrawable(map.context, R.drawable.ic_map_pin)
-            markers.forEach { m ->
-                val marker = Marker(map).apply {
-                    position = GeoPoint(m.lat, m.lng)
-                    title = m.title
-                    icon = pin
-                    setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-                    setOnMarkerClickListener { mk, _ ->
-                        onMarkerClick(m.id)
-                        mk.showInfoWindow()
-                        true
+                radiusMeters?.let { r ->
+                    val circle = Polygon().apply {
+                        points = Polygon.pointsAsCircle(GeoPoint(center.first, center.second), r)
+                        fillPaint.color = 0x331B6C5A.toInt()
+                        outlinePaint.color = 0xFF1B6C5A.toInt()
+                        outlinePaint.strokeWidth = 3f
                     }
+                    map.overlays.add(circle)
                 }
-                map.overlays.add(marker)
+
+                val pin = ContextCompat.getDrawable(map.context, R.drawable.ic_map_pin)
+                markers.forEach { m ->
+                    val marker = Marker(map).apply {
+                        position = GeoPoint(m.lat, m.lng)
+                        title = m.title
+                        icon = pin
+                        setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                        setOnMarkerClickListener { mk, _ ->
+                            onMarkerClick(m.id)
+                            mk.showInfoWindow()
+                            true
+                        }
+                    }
+                    map.overlays.add(marker)
+                }
+                map.invalidate()
+                applied.value = snapshot
             }
-            map.invalidate()
         },
     )
 }
