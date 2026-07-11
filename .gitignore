@@ -1,0 +1,25 @@
+*.iml
+.gradle/
+/local.properties
+/.idea/
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+/app/build/
+/app/release/
+*.keystore
+*.jks
+!debug.keystore
+
+# Secrets / local config (never commit keys, tokens, personal data)
+secrets.properties
+google-services.json
+
+# Claude Code / MCP tooling — do NOT commit any of this
+.claude/
+.mcp.json
+CLAUDE.md
+

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Base app theme. Compose supplies the real Material3 theming at runtime;
+         this XML theme only needs to be a valid, action-bar-less app theme. -->
+    <style name="Theme.PetTrack" parent="android:Theme.Material.Light.NoActionBar" />
+</resources>
