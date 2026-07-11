@@ -1,5 +1,6 @@
 package com.pettrack.app.data.repository
 
+import com.pettrack.app.BuildConfig
 import com.pettrack.app.core.di.IoDispatcher
 import com.pettrack.app.core.session.SessionStore
 import com.pettrack.app.data.remote.api.AuthApi
@@ -24,6 +25,7 @@ class AuthRepository @Inject constructor(
 
     suspend fun login(email: String, password: String): Result<Unit> = runCatching {
         withContext(ioDispatcher) {
+            requireSupabaseConfigured()
             val tokens = authApi.signInWithPassword(body = SignInRequest(email.trim(), password))
             persist(tokens)
         }
@@ -43,6 +45,7 @@ class AuthRepository @Inject constructor(
         address: String,
     ): Result<Unit> = runCatching {
         withContext(ioDispatcher) {
+            requireSupabaseConfigured()
             authApi.signUp(SignUpRequest(email.trim(), password, SignUpData(fullName.trim())))
             val tokens = authApi.signInWithPassword(body = SignInRequest(email.trim(), password))
             persist(tokens)
@@ -64,6 +67,13 @@ class AuthRepository @Inject constructor(
         withContext(ioDispatcher) {
             runCatching { authApi.logout() }
             session.clear()
+        }
+    }
+
+    /** Guard: si la clave de Supabase no quedó incrustada (falta local.properties al compilar). */
+    private fun requireSupabaseConfigured() {
+        require(BuildConfig.SUPABASE_ANON_KEY.isNotBlank()) {
+            "La app no tiene configurada la clave de Supabase. Crea el archivo local.properties (ver README) y vuelve a compilar."
         }
     }
 

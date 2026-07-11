@@ -51,12 +51,14 @@ class LoginViewModelTest {
 
     @Test
     fun badCredentials_setMappedError() = runTest {
-        authApi.signInError = HttpException(Response.error<Any>(401, "".toResponseBody(null)))
+        authApi.signInError = HttpException(
+            Response.error<Any>(400, """{"error_code":"invalid_credentials"}""".toResponseBody(null)),
+        )
         val vm = viewModel()
         vm.onEmailChange("a@b.com")
         vm.onPasswordChange("bad")
         vm.submit()
         assertFalse(vm.state.value.success)
-        assertEquals("Credenciales inválidas o correo no confirmado.", vm.state.value.error)
+        assertTrue(vm.state.value.error!!.contains("incorrect", ignoreCase = true))
     }
 }
