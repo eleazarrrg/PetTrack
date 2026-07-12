@@ -31,16 +31,25 @@ Backend en **Supabase** (Auth con JWT, PostgREST, PostGIS, RLS, Storage, RPC/tri
 ## ⚙️ Configuración
 
 1. **Clona** el repositorio.
-2. Crea el archivo **`local.properties`** en la raíz (NO se sube al repo) con:
-   ```properties
-   sdk.dir=C:\\Users\\TU_USUARIO\\AppData\\Local\\Android\\Sdk
-   SUPABASE_URL=https://TU-PROYECTO.supabase.co
-   SUPABASE_ANON_KEY=TU_ANON_KEY
-   ```
-   > La `anon key` se obtiene en Supabase → **Project Settings → API**. Es pública por diseño (la seguridad real la dan las políticas RLS), pero **no se versiona** en el repo.
-3. En Supabase → **Authentication → Providers → Email**: desactiva **"Confirm email"** para que el registro inicie sesión de inmediato (sin verificación por correo).
-4. Abre el proyecto en **Android Studio** → Sync → **Run** en un emulador o dispositivo.
+2. Abre el proyecto en **Android Studio** → Sync → **Run** en un emulador o dispositivo.
    - Por CLI: `./gradlew assembleDebug` (genera el APK en `app/build/outputs/apk/debug/`).
+
+> ✅ **Funciona al clonar, sin pasos extra.** La app trae embebidos por defecto el `SUPABASE_URL` y la `SUPABASE_ANON_KEY` del backend compartido, así que tus amigos pueden **registrarse e iniciar sesión** apenas compilan. La `anon key` es pública por diseño (la seguridad real la dan las políticas RLS de Supabase).
+
+### (Opcional) Usar tu propio Supabase
+
+Solo si quieres apuntar la app a **otro** proyecto de Supabase, copia la plantilla y sobrescribe los valores:
+
+```bash
+cp local.properties.example local.properties
+```
+
+```properties
+SUPABASE_URL=https://TU-PROYECTO.supabase.co
+SUPABASE_ANON_KEY=TU_ANON_KEY
+```
+
+`local.properties` está en `.gitignore` (no se versiona). Si usas tu propio proyecto, despliega también el esquema (tablas, RPCs, RLS) y en **Authentication → Providers → Email** desactiva **"Confirm email"** para que el registro inicie sesión de inmediato.
 
 ## 🗄️ Base de datos (Supabase)
 

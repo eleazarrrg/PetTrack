@@ -1,0 +1,17 @@
+# Plantilla de local.properties — cópiala como `local.properties` SOLO si necesitas
+# sobrescribir la configuración por defecto (p. ej. apuntar a TU propio Supabase).
+#
+# NOTA: NO es obligatorio para correr la app. Un clon recién descargado ya trae
+# embebidos SUPABASE_URL y SUPABASE_ANON_KEY por defecto (la anon key es pública por
+# diseño; la seguridad real la dan las políticas RLS). Android Studio genera `sdk.dir`
+# automáticamente al abrir el proyecto.
+#
+# Copia este archivo:   cp local.properties.example local.properties
+# y ajusta los valores que quieras sobrescribir.
+
+# Ruta del Android SDK (Android Studio la autogenera; ajústala si compilas por CLI).
+# sdk.dir=C:\\Users\\TU_USUARIO\\AppData\\Local\\Android\\Sdk
+
+# Sobrescribe el backend solo si usas tu propio proyecto de Supabase.
+# SUPABASE_URL=https://TU-PROYECTO.supabase.co
+# SUPABASE_ANON_KEY=TU_ANON_KEY

@@ -17,9 +17,11 @@ val localProps = Properties().apply {
 }
 val supabaseUrl: String = localProps.getProperty("SUPABASE_URL")
     ?: "https://jdystivegoujsnnvdnnf.supabase.co"
-// The anon key is intentionally NOT hardcoded — set SUPABASE_ANON_KEY in local.properties
-// (which is git-ignored). See README for setup.
-val supabaseAnonKey: String = localProps.getProperty("SUPABASE_ANON_KEY") ?: ""
+// The anon key is public-by-design (protected by RLS), so a committed fallback is safe and
+// lets a fresh clone build and register without any manual setup. Override it in
+// local.properties (git-ignored) if you point the app at your own Supabase project.
+val supabaseAnonKey: String = localProps.getProperty("SUPABASE_ANON_KEY")
+    ?: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpkeXN0aXZlZ291anNubnZkbm5mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM3MTQwOTEsImV4cCI6MjA5OTI5MDA5MX0.bhy5Q9EPNKhag4nQddqncor2KkO92jxDnlHxousFPZM"
 
 android {
     namespace = "com.pettrack.app"
