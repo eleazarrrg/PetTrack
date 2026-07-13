@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.pettrack.app.core.common.authErrorMessage
 import com.pettrack.app.core.location.LocationSource
+import com.pettrack.app.core.map.DEFAULT_MAP_CENTER
 import com.pettrack.app.data.repository.CommunityRepository
 import com.pettrack.app.domain.model.NearbyPet
 import com.pettrack.app.domain.model.PetStatus
@@ -37,7 +38,7 @@ data class CommunityUiState(
 ) {
     companion object {
         // Ciudad de Panamá — fallback so the demo shows the seeded pets.
-        val DEFAULT_CENTER = 8.98 to -79.52
+        val DEFAULT_CENTER = DEFAULT_MAP_CENTER
     }
 }
 
@@ -60,6 +61,12 @@ class CommunityViewModel @Inject constructor(
     fun setStatus(s: PetStatus?) { _state.update { it.copy(status = s) }; load() }
     fun setDateFilter(f: DateFilter) { _state.update { it.copy(dateFilter = f) }; load() }
 
+    /** Tap-to-search: fija el centro de búsqueda en el punto que el usuario tocó en el mapa. */
+    fun setCenter(lat: Double, lng: Double) {
+        _state.update { it.copy(center = lat to lng, usingMyLocation = false) }
+        load()
+    }
+
     fun useMyLocation() {
         viewModelScope.launch {
             val latLng = try { location.currentLatLng() } catch (_: Exception) { null }
@@ -72,8 +79,13 @@ class CommunityViewModel @Inject constructor(
         }
     }
 
+    // Monotonic tag: rapid searches (tap-to-search, chips) fire overlapping loads; only the latest
+    // one is allowed to write results, so a slow earlier response can't clobber a newer search.
+    private var loadGeneration = 0
+
     fun load() {
         val s = _state.value
+        val gen = ++loadGeneration
         viewModelScope.launch {
             _state.update { it.copy(loading = true, error = null) }
             community.nearby(
@@ -84,8 +96,8 @@ class CommunityViewModel @Inject constructor(
                 status = s.status,
                 from = fromIso(s.dateFilter),
             )
-                .onSuccess { pets -> _state.update { it.copy(loading = false, pets = pets) } }
-                .onFailure { e -> _state.update { it.copy(loading = false, error = authErrorMessage(e)) } }
+                .onSuccess { pets -> if (gen == loadGeneration) _state.update { it.copy(loading = false, pets = pets) } }
+                .onFailure { e -> if (gen == loadGeneration) _state.update { it.copy(loading = false, error = authErrorMessage(e)) } }
         }
     }
 

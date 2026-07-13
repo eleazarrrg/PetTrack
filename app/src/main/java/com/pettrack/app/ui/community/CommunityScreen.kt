@@ -120,6 +120,12 @@ fun CommunityScreen(
                     Icon(Icons.Filled.MyLocation, contentDescription = null)
                     Text(if (state.usingMyLocation) "  Usando mi ubicación" else "  Usar mi ubicación")
                 }
+
+                Text(
+                    "Toca el mapa para buscar en otra zona.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
 
             OsmMap(
@@ -127,6 +133,7 @@ fun CommunityScreen(
                 markers = state.pets.map { MapMarker(it.id, it.latitude, it.longitude, it.name) },
                 radiusMeters = state.radiusKm * 1000.0,
                 onMarkerClick = onOpenPet,
+                onMapClick = { lat, lng -> viewModel.setCenter(lat, lng) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp)

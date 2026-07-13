@@ -77,6 +77,10 @@ class ReportPetViewModel @Inject constructor(
         _state.update { it.copy(photoName = name) }
     }
 
+    /** Manual pin from the map picker (e.g. "se perdió en la playa" aunque ya estés en casa). */
+    fun setLocation(lat: Double, lng: Double) =
+        _state.update { it.copy(latitude = lat, longitude = lng, error = null) }
+
     fun captureLocation() {
         viewModelScope.launch {
             _state.update { it.copy(capturingLocation = true, error = null) }

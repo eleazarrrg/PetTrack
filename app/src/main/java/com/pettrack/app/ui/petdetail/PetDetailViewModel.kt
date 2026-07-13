@@ -11,6 +11,7 @@ import com.pettrack.app.domain.model.OwnerContact
 import com.pettrack.app.domain.model.Pet
 import com.pettrack.app.domain.model.Sighting
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -56,13 +57,33 @@ class PetDetailViewModel @Inject constructor(
     fun load() {
         viewModelScope.launch {
             _state.update { it.copy(loading = true, error = null) }
-            petRepo.getPet(petId)
-                .onSuccess { pet ->
-                    val photos = community.photoUrls(petId).getOrDefault(emptyList())
-                    val sightings = community.sightings(petId).getOrDefault(emptyList())
-                    _state.update { it.copy(loading = false, pet = pet, photoUrls = photos, sightings = sightings) }
+            val petResult = petRepo.getPet(petId)
+            val pet = petResult.getOrNull()
+            if (pet == null) {
+                _state.update {
+                    it.copy(loading = false, error = authErrorMessage(petResult.exceptionOrNull() ?: IllegalStateException()))
                 }
-                .onFailure { e -> _state.update { it.copy(loading = false, error = authErrorMessage(e)) } }
+                return@launch
+            }
+            // Photos and sightings are independent — fetch them concurrently, not in series.
+            val photosDeferred = async { community.photoUrls(petId) }
+            val sightingsDeferred = async { community.sightings(petId) }
+            val photosResult = photosDeferred.await()
+            val sightingsResult = sightingsDeferred.await()
+            // Surface a partial-load failure instead of silently showing empty lists as if valid.
+            val loadError = listOfNotNull(
+                photosResult.exceptionOrNull()?.let { "No se pudieron cargar las fotos." },
+                sightingsResult.exceptionOrNull()?.let { "No se pudieron cargar los avistamientos." },
+            ).joinToString(" ").ifBlank { null }
+            _state.update {
+                it.copy(
+                    loading = false,
+                    pet = pet,
+                    photoUrls = photosResult.getOrDefault(emptyList()),
+                    sightings = sightingsResult.getOrDefault(emptyList()),
+                    error = loadError,
+                )
+            }
         }
     }
 
@@ -83,15 +104,20 @@ class PetDetailViewModel @Inject constructor(
     fun closeReport() = _state.update { it.copy(showReport = false) }
     fun onNote(v: String) = _state.update { it.copy(note = v) }
 
+    /** Manual pin from the map picker: dónde viste a la mascota, aunque ya no estés ahí. */
+    fun setSightingLocation(lat: Double, lng: Double) =
+        _state.update { it.copy(sightLat = lat, sightLng = lng, reportError = null) }
+
     fun captureSightingLocation() {
         viewModelScope.launch {
-            _state.update { it.copy(capturingLocation = true) }
+            _state.update { it.copy(capturingLocation = true, reportError = null) }
             val latLng = try { location.currentLatLng() } catch (_: Exception) { null }
             _state.update {
                 it.copy(
                     capturingLocation = false,
                     sightLat = latLng?.first ?: it.sightLat,
                     sightLng = latLng?.second ?: it.sightLng,
+                    reportError = if (latLng == null) "No se pudo obtener la ubicación GPS." else it.reportError,
                 )
             }
         }

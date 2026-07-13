@@ -9,6 +9,7 @@ import com.pettrack.app.util.MainDispatcherRule
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -57,5 +58,18 @@ class CommunityViewModelTest {
         assertEquals(9.10, vm.state.value.center.first, 0.0001)
         assertTrue(vm.state.value.usingMyLocation)
         assertEquals(9.10, rpcApi.lastNearbyRequest!!.lat, 0.0001)
+    }
+
+    @Test
+    fun setCenter_updatesCenter_clearsMyLocation_andReloads() = runTest {
+        location.latLng = 9.10 to -79.90
+        val vm = viewModel()
+        vm.useMyLocation()
+        vm.setCenter(9.55, -79.05)
+        assertEquals(9.55, vm.state.value.center.first, 0.0001)
+        assertEquals(-79.05, vm.state.value.center.second, 0.0001)
+        assertFalse(vm.state.value.usingMyLocation)
+        assertEquals(9.55, rpcApi.lastNearbyRequest!!.lat, 0.0001)
+        assertEquals(-79.05, rpcApi.lastNearbyRequest!!.lng, 0.0001)
     }
 }

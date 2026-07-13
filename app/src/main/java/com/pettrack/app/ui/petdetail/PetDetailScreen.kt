@@ -33,10 +33,17 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -45,6 +52,8 @@ import coil.compose.AsyncImage
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
+import com.pettrack.app.core.map.DEFAULT_MAP_CENTER
+import com.pettrack.app.core.map.LocationPickerDialog
 import com.pettrack.app.core.map.MapMarker
 import com.pettrack.app.core.map.OsmMap
 import com.pettrack.app.domain.model.Pet
@@ -59,6 +68,16 @@ fun PetDetailScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val locationPermission = rememberPermissionState(Manifest.permission.ACCESS_FINE_LOCATION)
+    var showSightPicker by rememberSaveable { mutableStateOf(false) }
+    var pendingSightGps by rememberSaveable { mutableStateOf(false) }
+
+    // Capture GPS as soon as the permission is granted, so the first tap doesn't require a second.
+    LaunchedEffect(locationPermission.status.isGranted) {
+        if (pendingSightGps && locationPermission.status.isGranted) {
+            pendingSightGps = false
+            viewModel.captureSightingLocation()
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -94,15 +113,24 @@ fun PetDetailScreen(
 
                 PetInfo(pet)
 
+                state.error?.let {
+                    Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                }
+
                 val center = if (pet.latitude != null && pet.longitude != null) pet.latitude to pet.longitude
-                else 8.98 to -79.52
+                else DEFAULT_MAP_CENTER
                 val markers = buildList {
                     if (pet.latitude != null && pet.longitude != null) add(MapMarker(pet.id, pet.latitude, pet.longitude, "Última ubicación"))
                     state.sightings.forEach { s ->
                         if (s.latitude != null && s.longitude != null) add(MapMarker(s.id, s.latitude, s.longitude, "Avistamiento"))
                     }
                 }
-                OsmMap(center = center, markers = markers, zoom = 14.0, modifier = Modifier.fillMaxWidth().height(220.dp))
+                OsmMap(
+                    center = center,
+                    markers = markers,
+                    zoom = 14.0,
+                    modifier = Modifier.fillMaxWidth().height(220.dp).clip(RoundedCornerShape(12.dp)),
+                )
 
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(onClick = viewModel::openReport, modifier = Modifier.weight(1f)) { Text("Avistamiento") }
@@ -169,9 +197,19 @@ fun PetDetailScreen(
                         modifier = Modifier.fillMaxWidth(),
                     )
                     OutlinedButton(
+                        onClick = { showSightPicker = true },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(if (state.sightLat != null) "Ubicación elegida ✓" else "Elegir en el mapa")
+                    }
+                    OutlinedButton(
                         onClick = {
-                            if (locationPermission.status.isGranted) viewModel.captureSightingLocation()
-                            else locationPermission.launchPermissionRequest()
+                            if (locationPermission.status.isGranted) {
+                                viewModel.captureSightingLocation()
+                            } else {
+                                pendingSightGps = true
+                                locationPermission.launchPermissionRequest()
+                            }
                         },
                         enabled = !state.capturingLocation,
                         modifier = Modifier.fillMaxWidth(),
@@ -180,17 +218,39 @@ fun PetDetailScreen(
                             when {
                                 state.capturingLocation -> "Obteniendo ubicación…"
                                 state.sightLat != null -> "Ubicación lista ✓"
-                                else -> "Capturar ubicación (GPS)"
+                                else -> "Usar mi GPS"
                             },
                         )
                     }
                     Text(
-                        "Si no capturas, se usará la última ubicación conocida.",
+                        "Si no eliges ni capturas, se usará la última ubicación conocida.",
                         style = MaterialTheme.typography.bodySmall,
                     )
                     state.reportError?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
                 }
             },
+        )
+    }
+
+    // ---- Map picker for the sighting location ----
+    if (showSightPicker) {
+        val petPoint = state.pet?.let { p ->
+            if (p.latitude != null && p.longitude != null) p.latitude!! to p.longitude!! else null
+        }
+        val current = if (state.sightLat != null && state.sightLng != null) {
+            state.sightLat!! to state.sightLng!!
+        } else {
+            null
+        }
+        LocationPickerDialog(
+            initialCenter = current ?: petPoint ?: DEFAULT_MAP_CENTER,
+            initialPoint = current,
+            title = "¿Dónde la viste?",
+            onConfirm = { lat, lng ->
+                viewModel.setSightingLocation(lat, lng)
+                showSightPicker = false
+            },
+            onDismiss = { showSightPicker = false },
         )
     }
 }

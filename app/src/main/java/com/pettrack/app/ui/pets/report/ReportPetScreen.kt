@@ -37,6 +37,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -48,8 +50,16 @@ import coil.compose.AsyncImage
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
+import com.pettrack.app.core.map.DEFAULT_MAP_CENTER
+import com.pettrack.app.core.common.AppLog
+import com.pettrack.app.core.common.ImageDownscaler
+import com.pettrack.app.core.map.LocationPickerDialog
 import com.pettrack.app.domain.model.PetSize
 import com.pettrack.app.domain.model.PetStatus
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class, ExperimentalLayoutApi::class)
 @Composable
@@ -60,22 +70,53 @@ fun ReportPetScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    var pickedUri by remember { mutableStateOf<Uri?>(null) }
+    var pickedUri by rememberSaveable { mutableStateOf<Uri?>(null) }
+    var showLocationPicker by rememberSaveable { mutableStateOf(false) }
+    var pendingGps by rememberSaveable { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
     val photoLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia(),
     ) { uri ->
         if (uri != null) {
             pickedUri = uri
-            val mime = context.contentResolver.getType(uri) ?: "image/jpeg"
-            val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
-            if (bytes != null) viewModel.onPhotoPicked(bytes, mime, uri.lastPathSegment ?: "foto")
+            // Read + downscale the (potentially multi-MB) image off the main thread to avoid jank/ANR.
+            scope.launch {
+                val prepared = withContext(Dispatchers.IO) {
+                    try {
+                        val raw = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                            ?: return@withContext null
+                        // Shrink to a sane size; fall back to the original if decoding fails.
+                        ImageDownscaler.downscaleToJpeg(raw)
+                            ?: (raw to (context.contentResolver.getType(uri) ?: "image/jpeg"))
+                    } catch (c: CancellationException) {
+                        throw c
+                    } catch (t: Exception) {
+                        AppLog.w("Could not read picked image", t)
+                        null
+                    }
+                }
+                if (prepared != null) {
+                    viewModel.onPhotoPicked(prepared.first, prepared.second, uri.lastPathSegment ?: "foto")
+                } else {
+                    // Reading failed — don't leave a preview implying a photo was attached.
+                    pickedUri = null
+                }
+            }
         }
     }
 
     val locationPermission = rememberPermissionState(Manifest.permission.ACCESS_FINE_LOCATION)
 
     LaunchedEffect(state.success) { if (state.success) onSaved() }
+
+    // Capture GPS as soon as the permission is granted, so the first tap doesn't require a second.
+    LaunchedEffect(locationPermission.status.isGranted) {
+        if (pendingGps && locationPermission.status.isGranted) {
+            pendingGps = false
+            viewModel.captureLocation()
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -142,21 +183,33 @@ fun ReportPetScreen(
             }
 
             HorizontalDivider()
-            OutlinedButton(
-                onClick = {
-                    if (locationPermission.status.isGranted) viewModel.captureLocation()
-                    else locationPermission.launchPermissionRequest()
+            Text("Ubicación (dónde se perdió)", style = MaterialTheme.typography.labelLarge)
+            Text(
+                when {
+                    state.capturingLocation -> "Obteniendo ubicación…"
+                    state.latitude != null -> "Ubicación: %.4f, %.4f".format(state.latitude, state.longitude)
+                    else -> "Sin ubicación definida"
                 },
-                enabled = !state.capturingLocation,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(
-                    when {
-                        state.capturingLocation -> "Obteniendo ubicación…"
-                        state.latitude != null -> "Ubicación: %.4f, %.4f".format(state.latitude, state.longitude)
-                        else -> "Capturar ubicación (GPS)"
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = { showLocationPicker = true }, modifier = Modifier.weight(1f)) {
+                    Text("Elegir en el mapa")
+                }
+                OutlinedButton(
+                    onClick = {
+                        if (locationPermission.status.isGranted) {
+                            viewModel.captureLocation()
+                        } else {
+                            pendingGps = true
+                            locationPermission.launchPermissionRequest()
+                        }
                     },
-                )
+                    enabled = !state.capturingLocation,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text("Usar mi GPS")
+                }
             }
 
             OutlinedButton(
@@ -178,5 +231,23 @@ fun ReportPetScreen(
                 Text(if (state.isEdit) "Guardar cambios" else "Reportar")
             }
         }
+    }
+
+    if (showLocationPicker) {
+        val current = if (state.latitude != null && state.longitude != null) {
+            state.latitude!! to state.longitude!!
+        } else {
+            null
+        }
+        LocationPickerDialog(
+            initialCenter = current ?: DEFAULT_MAP_CENTER,
+            initialPoint = current,
+            title = "¿Dónde se perdió?",
+            onConfirm = { lat, lng ->
+                viewModel.setLocation(lat, lng)
+                showLocationPicker = false
+            },
+            onDismiss = { showLocationPicker = false },
+        )
     }
 }
