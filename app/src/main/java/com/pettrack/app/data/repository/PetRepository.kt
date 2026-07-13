@@ -1,5 +1,7 @@
 package com.pettrack.app.data.repository
 
+import com.pettrack.app.core.common.AppLog
+import com.pettrack.app.core.common.throwIfFailed
 import com.pettrack.app.core.di.IoDispatcher
 import com.pettrack.app.core.session.SessionStore
 import com.pettrack.app.data.remote.api.PetApi
@@ -16,6 +18,7 @@ import com.pettrack.app.domain.model.PetInput
 import com.pettrack.app.domain.model.PetSize
 import com.pettrack.app.domain.model.PetStatus
 import com.pettrack.app.domain.model.PhotoBytes
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -52,8 +55,20 @@ class PetRepository @Inject constructor(
                 val uid = session.userId ?: error("Sesión no iniciada")
                 val created = petApi.createPet(input.toInsert(uid)).firstOrNull()
                     ?: error("No se pudo crear la mascota")
-                if (lat != null && lng != null) rpcApi.setPetLocation(SetLocationRequest(created.id, lat, lng))
-                if (photo != null) uploadPhoto(uid, created.id, photo)
+                try {
+                    if (lat != null && lng != null) {
+                        rpcApi.setPetLocation(SetLocationRequest(created.id, lat, lng)).throwIfFailed()
+                    }
+                    if (photo != null) uploadPhoto(uid, created.id, photo)
+                } catch (c: CancellationException) {
+                    throw c
+                } catch (t: Exception) {
+                    // The pet row is already committed. Roll it back so a retry doesn't create a
+                    // duplicate (and so we don't leave an orphan with no location/photo).
+                    runCatching { petApi.deletePet("eq.${created.id}").throwIfFailed() }
+                        .onFailure { AppLog.w("Rollback of half-created pet ${created.id} failed", it) }
+                    throw t
+                }
                 created.id
             }
         }
@@ -63,7 +78,9 @@ class PetRepository @Inject constructor(
             withContext(io) {
                 val uid = session.userId ?: error("Sesión no iniciada")
                 petApi.replacePet("eq.$id", input.toPut(id, uid))
-                if (lat != null && lng != null) rpcApi.setPetLocation(SetLocationRequest(id, lat, lng))
+                if (lat != null && lng != null) {
+                    rpcApi.setPetLocation(SetLocationRequest(id, lat, lng)).throwIfFailed()
+                }
                 if (photo != null) uploadPhoto(uid, id, photo)
                 Unit
             }
@@ -78,15 +95,15 @@ class PetRepository @Inject constructor(
 
     suspend fun deletePet(id: String): Result<Unit> = runCatching {
         withContext(io) {
-            petApi.deletePet("eq.$id")
+            petApi.deletePet("eq.$id").throwIfFailed()
             Unit
         }
     }
 
     private suspend fun uploadPhoto(uid: String, petId: String, photo: PhotoBytes) {
         val path = "$uid/$petId/${UUID.randomUUID()}.${photo.ext}"
-        storageApi.upload(path, photo.bytes.toRequestBody(photo.mime.toMediaType()), photo.mime)
-        petApi.addPhoto(PetPhotoInsert(petId = petId, storagePath = path))
+        storageApi.upload(path, photo.bytes.toRequestBody(photo.mime.toMediaType()), photo.mime).throwIfFailed()
+        petApi.addPhoto(PetPhotoInsert(petId = petId, storagePath = path)).throwIfFailed()
     }
 }
 

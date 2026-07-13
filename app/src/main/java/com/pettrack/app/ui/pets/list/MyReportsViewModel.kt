@@ -38,7 +38,9 @@ class MyReportsViewModel @Inject constructor(
 
     fun delete(id: String) {
         viewModelScope.launch {
-            repository.deletePet(id).onSuccess { load() }
+            repository.deletePet(id)
+                .onSuccess { load() }
+                .onFailure { e -> _state.update { it.copy(error = authErrorMessage(e)) } }
         }
     }
 }

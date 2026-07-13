@@ -10,6 +10,7 @@ import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -79,5 +80,16 @@ class TokenAuthenticatorTest {
         session.refreshToken = null
         val retried = authenticator.authenticate(null, unauthorizedResponse())
         assertNull(retried)
+    }
+
+    @Test
+    fun refreshNetworkError_keepsSessionForRetry() {
+        // Point the refresh at a dead address so the call fails with an IOException (no server).
+        val deadUrl = "http://127.0.0.1:1"
+        val netAuth = TokenAuthenticator(session, json, deadUrl, OkHttpClient())
+        val retried = netAuth.authenticate(null, unauthorizedResponse())
+        assertNull(retried)
+        // A lost connection must NOT log the user out.
+        assertFalse(session.cleared)
     }
 }

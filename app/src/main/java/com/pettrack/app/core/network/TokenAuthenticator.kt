@@ -1,6 +1,7 @@
 package com.pettrack.app.core.network
 
 import com.pettrack.app.BuildConfig
+import com.pettrack.app.core.common.AppLog
 import com.pettrack.app.core.session.SessionStore
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -11,6 +12,7 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import okhttp3.Route
+import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Named
 import javax.inject.Singleton
@@ -44,9 +46,16 @@ class TokenAuthenticator @Inject constructor(
             if (current != null && current != tokenUsed) {
                 current
             } else {
-                refreshBlocking(refreshToken) ?: run {
-                    session.clear()
-                    return null
+                when (val outcome = refreshBlocking(refreshToken)) {
+                    is RefreshOutcome.Success -> outcome.accessToken
+                    // Genuine auth failure (bad/expired refresh token): log the user out.
+                    RefreshOutcome.AuthFailure -> {
+                        session.clear()
+                        return null
+                    }
+                    // Transient network problem: DON'T log out over a lost connection — just fail
+                    // this request; a later request will retry the refresh once connectivity returns.
+                    RefreshOutcome.NetworkError -> return null
                 }
             }
         }
@@ -56,7 +65,7 @@ class TokenAuthenticator @Inject constructor(
             .build()
     }
 
-    private fun refreshBlocking(refreshToken: String): String? {
+    private fun refreshBlocking(refreshToken: String): RefreshOutcome {
         return try {
             val url = "$baseUrl/auth/v1/token?grant_type=refresh_token"
             val body = json.encodeToString(RefreshRequest.serializer(), RefreshRequest(refreshToken))
@@ -68,15 +77,29 @@ class TokenAuthenticator @Inject constructor(
                 .post(body)
                 .build()
             bareClient.newCall(request).execute().use { resp ->
-                if (!resp.isSuccessful) return null
-                val payload = resp.body?.string() ?: return null
+                if (!resp.isSuccessful) {
+                    AppLog.w("Token refresh rejected by server: HTTP ${resp.code}")
+                    return RefreshOutcome.AuthFailure
+                }
+                val payload = resp.body?.string()
+                    ?: return RefreshOutcome.AuthFailure
                 val tokens = json.decodeFromString(RefreshResponse.serializer(), payload)
                 session.updateTokens(tokens.accessToken, tokens.refreshToken)
-                tokens.accessToken
+                RefreshOutcome.Success(tokens.accessToken)
             }
-        } catch (_: Exception) {
-            null
+        } catch (e: IOException) {
+            AppLog.w("Token refresh network error; keeping session for retry", e)
+            RefreshOutcome.NetworkError
+        } catch (e: Exception) {
+            AppLog.e("Token refresh failed unexpectedly", e)
+            RefreshOutcome.AuthFailure
         }
+    }
+
+    private sealed interface RefreshOutcome {
+        data class Success(val accessToken: String) : RefreshOutcome
+        object AuthFailure : RefreshOutcome
+        object NetworkError : RefreshOutcome
     }
 
     private fun responseCount(response: Response): Int {

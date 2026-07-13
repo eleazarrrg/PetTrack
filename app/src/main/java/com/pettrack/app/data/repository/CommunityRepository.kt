@@ -1,6 +1,7 @@
 package com.pettrack.app.data.repository
 
 import com.pettrack.app.core.common.publicPhotoUrl
+import com.pettrack.app.core.common.throwIfFailed
 import com.pettrack.app.core.di.IoDispatcher
 import com.pettrack.app.data.remote.api.PetApi
 import com.pettrack.app.data.remote.api.RpcApi
@@ -60,6 +61,7 @@ class CommunityRepository @Inject constructor(
         runCatching {
             withContext(io) {
                 rpcApi.reportSighting(ReportSightingRequest(petId, lat, lng, note?.trim()?.ifBlank { null }))
+                    .throwIfFailed()
                 Unit
             }
         }

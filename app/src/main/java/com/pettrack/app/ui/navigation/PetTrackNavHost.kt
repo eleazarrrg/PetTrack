@@ -16,7 +16,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.repeatOnLifecycle
+import kotlinx.coroutines.delay
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -52,6 +56,8 @@ private val TABS = listOf(
     TabItem(Routes.PROFILE, "Perfil", Icons.Filled.Person),
 )
 
+private const val NOTIFICATION_POLL_MS = 15_000L
+
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun PetTrackNavHost(rootViewModel: RootViewModel = hiltViewModel()) {
@@ -70,6 +76,29 @@ fun PetTrackNavHost(rootViewModel: RootViewModel = hiltViewModel()) {
             }
         } else {
             notificationWatcher.reset()
+            // Session ended (logout OR token refresh failed): if we're on an authenticated screen,
+            // kick back to Login and clear the back stack. Guarded so it's a no-op at cold start
+            // (already on Login) and doesn't loop on the auth screens.
+            val current = navController.currentDestination?.route
+            if (current != null && current != Routes.LOGIN && current != Routes.REGISTER) {
+                navController.navigate(Routes.LOGIN) {
+                    popUpTo(navController.graph.id) { inclusive = true }
+                }
+            }
+        }
+    }
+
+    // Poll for the unread badge only while authenticated AND the app is in the foreground
+    // (repeatOnLifecycle pauses the loop when STOPPED), so backgrounding stops the network churn.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    LaunchedEffect(authState, lifecycleOwner) {
+        if (authState is AuthState.Authenticated) {
+            lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                while (true) {
+                    notificationWatcher.refresh()
+                    delay(NOTIFICATION_POLL_MS)
+                }
+            }
         }
     }
 

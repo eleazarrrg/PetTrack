@@ -1,16 +1,16 @@
 package com.pettrack.app.ui.notifications
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import com.pettrack.app.core.notifications.NotificationCenter
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-/** Polls notifications while alive to keep the unread badge fresh and fire system notifs. */
+/**
+ * Exposes the unread badge and a one-shot [refresh]. Polling is driven by the UI layer under
+ * `repeatOnLifecycle` so it pauses when the app is backgrounded (no wasted network/battery),
+ * instead of looping for the whole process lifetime.
+ */
 @HiltViewModel
 class NotificationWatcherViewModel @Inject constructor(
     private val center: NotificationCenter,
@@ -18,18 +18,7 @@ class NotificationWatcherViewModel @Inject constructor(
 
     val unreadCount: StateFlow<Int> = center.unreadCount
 
-    init {
-        viewModelScope.launch {
-            while (isActive) {
-                center.refresh()
-                delay(POLL_INTERVAL_MS)
-            }
-        }
-    }
+    suspend fun refresh() = center.refresh()
 
     fun reset() = center.reset()
-
-    private companion object {
-        const val POLL_INTERVAL_MS = 15_000L
-    }
 }

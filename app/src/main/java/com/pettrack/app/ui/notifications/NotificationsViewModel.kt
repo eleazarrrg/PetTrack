@@ -44,14 +44,16 @@ class NotificationsViewModel @Inject constructor(
     fun markAllRead() {
         viewModelScope.launch {
             repository.markAllRead()
-            load()
+                .onSuccess { load() }
+                .onFailure { e -> _state.update { it.copy(error = authErrorMessage(e)) } }
         }
     }
 
     fun onOpen(id: String) {
         viewModelScope.launch {
             repository.markRead(id)
-            load()
+                .onSuccess { load() }
+                .onFailure { e -> _state.update { it.copy(error = authErrorMessage(e)) } }
         }
     }
 }

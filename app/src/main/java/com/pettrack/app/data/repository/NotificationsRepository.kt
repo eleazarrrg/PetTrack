@@ -1,5 +1,6 @@
 package com.pettrack.app.data.repository
 
+import com.pettrack.app.core.common.throwIfFailed
 import com.pettrack.app.core.di.IoDispatcher
 import com.pettrack.app.core.session.SessionStore
 import com.pettrack.app.data.remote.api.NotificationApi
@@ -24,14 +25,13 @@ class NotificationsRepository @Inject constructor(
     }
 
     suspend fun markRead(id: String): Result<Unit> = runCatching {
-        withContext(io) { api.markRead("eq.$id"); Unit }
+        withContext(io) { api.markRead("eq.$id").throwIfFailed() }
     }
 
     suspend fun markAllRead(): Result<Unit> = runCatching {
         withContext(io) {
             val uid = session.userId ?: error("Sesión no iniciada")
-            api.markAllRead("eq.$uid")
-            Unit
+            api.markAllRead("eq.$uid").throwIfFailed()
         }
     }
 }

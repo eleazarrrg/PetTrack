@@ -1,5 +1,6 @@
 package com.pettrack.app.core.notifications
 
+import com.pettrack.app.core.common.AppLog
 import com.pettrack.app.data.repository.NotificationsRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -27,7 +28,10 @@ class NotificationCenter @Inject constructor(
     private var seenIds = emptySet<String>()
 
     suspend fun refresh() {
-        val list = repository.list().getOrNull() ?: return
+        val list = repository.list().getOrElse {
+            AppLog.w("Notification refresh failed; badge may be stale", it)
+            return
+        }
         mutex.withLock {
             _unreadCount.value = list.count { !it.read }
             if (!seeded) {

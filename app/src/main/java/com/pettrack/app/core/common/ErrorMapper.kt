@@ -1,5 +1,6 @@
 package com.pettrack.app.core.common
 
+import com.pettrack.app.BuildConfig
 import retrofit2.HttpException
 import java.io.IOException
 
@@ -17,25 +18,33 @@ fun authErrorMessage(t: Throwable): String = when (t) {
 private fun mapHttpError(e: HttpException): String {
     val body = try {
         e.response()?.errorBody()?.string().orEmpty()
-    } catch (_: Exception) {
+    } catch (t: Exception) {
+        AppLog.w("Could not read error body for HTTP ${e.code()}", t)
         ""
     }
+    // Preserve the real cause for diagnosis. The raw body may echo submitted values (PII), so keep
+    // only the status code at WARN (release-safe) and log the body at DEBUG (stripped in release).
+    AppLog.w("HTTP ${e.code()} error")
+    AppLog.d("HTTP ${e.code()} body: ${body.take(300)}")
     val text = body.lowercase()
     return when {
-        // Falta o es inválida la clave (local.properties no configurado / build sin la clave)
-        text.contains("no api key") || text.contains("invalid api key") ||
-            text.contains("apikey") ->
-            "Falta configurar la clave de Supabase. Crea el archivo local.properties (ver README) y vuelve a compilar."
+        // Clave inválida/ausente. El detalle técnico solo en debug — en release no filtramos infra.
+        text.contains("no api key") || text.contains("invalid api key") ->
+            if (BuildConfig.DEBUG) {
+                "Problema con la clave de Supabase. Revisa la configuración (local.properties) y recompila."
+            } else {
+                "No se pudo conectar con el servidor. Inténtalo más tarde."
+            }
 
         // Correo no confirmado (cuenta vieja creada cuando la confirmación estaba activa)
         text.contains("email_not_confirmed") || text.contains("email not confirmed") ->
             "Ese correo no está confirmado. Regístrate con un correo nuevo, o confírmalo desde el enlace que te llegó."
 
-        // El proveedor de correo o los registros están apagados en Supabase
+        // El proveedor de correo o los registros están apagados en el servidor
         text.contains("email_provider_disabled") || text.contains("logins are disabled") ||
             text.contains("signups not allowed") || text.contains("signup is disabled") ||
             text.contains("email logins are disabled") ->
-            "El registro/inicio por correo está deshabilitado en el servidor. Actívalo en Supabase (Authentication → Email)."
+            "El registro/inicio por correo está deshabilitado en el servidor."
 
         // El correo ya existe
         text.contains("user_already_exists") || text.contains("already registered") ||
@@ -51,8 +60,10 @@ private fun mapHttpError(e: HttpException): String {
         text.contains("weak_password") || text.contains("password should be") ->
             "La contraseña es muy débil (usa al menos 6 caracteres)."
 
-        e.code() == 401 || e.code() == 403 ->
-            "No autorizado. Revisa la configuración de la app (local.properties) o tus credenciales."
+        // 403 = política del servidor (RLS): permiso, no credenciales.
+        e.code() == 403 -> "No tienes permiso para realizar esta acción."
+
+        e.code() == 401 -> "No autorizado. Revisa tus credenciales e inténtalo de nuevo."
 
         e.code() in 500..599 -> "Error del servidor (${e.code()}). Intenta más tarde."
         else -> "No se pudo completar la solicitud (${e.code()})."

@@ -5,6 +5,7 @@ import androidx.core.app.NotificationChannelCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.pettrack.app.R
+import com.pettrack.app.core.common.AppLog
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -35,8 +36,9 @@ class AppNotifier @Inject constructor(
             .build()
         try {
             manager.notify(id, notification)
-        } catch (_: SecurityException) {
-            // POST_NOTIFICATIONS not granted — ignore.
+        } catch (e: SecurityException) {
+            // POST_NOTIFICATIONS not granted — drop it, but leave a trace.
+            AppLog.w("Notification dropped: POST_NOTIFICATIONS not granted", e)
         }
     }
 

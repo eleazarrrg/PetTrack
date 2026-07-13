@@ -61,7 +61,8 @@ fun NotificationsScreen(
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
             when {
                 state.loading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
-                state.error != null -> Text(
+                // Full-screen error ONLY when there's nothing else to show (initial-load failure).
+                state.error != null && state.items.isEmpty() -> Text(
                     state.error!!,
                     color = MaterialTheme.colorScheme.error,
                     modifier = Modifier.align(Alignment.Center).padding(24.dp),
@@ -70,12 +71,21 @@ fun NotificationsScreen(
                     "No tienes notificaciones.",
                     modifier = Modifier.align(Alignment.Center).padding(24.dp),
                 )
-                else -> LazyColumn(
+                else -> Column(
                     modifier = Modifier.fillMaxSize().padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    items(state.items, key = { it.id }) { n ->
-                        NotificationRow(n, onClick = { viewModel.onOpen(n.id) })
+                    // Action failure (e.g. a failed mark-read) — surface it WITHOUT hiding the list.
+                    state.error?.let {
+                        Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                    }
+                    LazyColumn(
+                        modifier = Modifier.weight(1f).fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        items(state.items, key = { it.id }) { n ->
+                            NotificationRow(n, onClick = { viewModel.onOpen(n.id) })
+                        }
                     }
                 }
             }

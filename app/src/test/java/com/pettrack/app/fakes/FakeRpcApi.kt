@@ -18,7 +18,11 @@ class FakeRpcApi : RpcApi {
     var ownerContactResult: List<OwnerContactDto> = emptyList()
     var dashboardResult: DashboardStatsDto = DashboardStatsDto()
 
-    override suspend fun setPetLocation(body: SetLocationRequest): Response<Unit> = Response.success(Unit)
+    // Configurable so tests can exercise the non-2xx (server rejection) path.
+    var setLocationResponse: Response<Unit> = Response.success(Unit)
+    var reportSightingResponse: Response<Unit> = Response.success(Unit)
+
+    override suspend fun setPetLocation(body: SetLocationRequest): Response<Unit> = setLocationResponse
 
     override suspend fun petsNearby(body: PetsNearbyRequest): List<PetNearbyDto> {
         lastNearbyRequest = body
@@ -27,7 +31,7 @@ class FakeRpcApi : RpcApi {
 
     override suspend fun reportSighting(body: ReportSightingRequest): Response<Unit> {
         lastSightingRequest = body
-        return Response.success(Unit)
+        return reportSightingResponse
     }
 
     override suspend fun getOwnerContact(body: OwnerContactRequest): List<OwnerContactDto> = ownerContactResult
