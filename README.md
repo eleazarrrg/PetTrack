@@ -64,7 +64,6 @@ historial de todos sus reportes, que puede editar o eliminar.
 |:---:|:---:|:---:|
 | <img src="docs/screenshots/Dashboard.jpg" width="240"/> | <img src="docs/screenshots/ResumenEjecutivo.jpg" width="240"/> | <img src="docs/screenshots/Perfil.jpg" width="240"/> |
 
-**Video demostración:** _(agrega aquí el enlace a tu video — YouTube, Drive, o un `docs/screenshots/demo.gif`)_
 
 ---
 
