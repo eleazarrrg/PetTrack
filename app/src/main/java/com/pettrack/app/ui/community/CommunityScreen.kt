@@ -1,5 +1,6 @@
 package com.pettrack.app.ui.community
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,9 +18,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Pets
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.CircularProgressIndicator
@@ -36,10 +40,14 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -58,6 +66,7 @@ fun CommunityScreen(
     viewModel: CommunityViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    var filtersExpanded by rememberSaveable { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -79,46 +88,83 @@ fun CommunityScreen(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                OutlinedTextField(
-                    value = state.species,
-                    onValueChange = viewModel::setSpecies,
-                    label = { Text("Especie (perro, gato…)") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                    keyboardActions = KeyboardActions(onSearch = { viewModel.applySpecies() }),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-
-                Text("Radio", style = MaterialTheme.typography.labelMedium)
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    RADIUS_OPTIONS.forEach { km ->
-                        FilterChip(
-                            selected = state.radiusKm == km,
-                            onClick = { viewModel.setRadius(km) },
-                            label = { Text("$km km") },
-                        )
+                // Collapsible filters: keep them out of the way so the list below the map isn't cramped.
+                val filterSummary = buildString {
+                    if (state.species.isNotBlank()) append(state.species.trim()).append(" · ")
+                    append("${state.radiusKm} km · ")
+                    append(state.status?.label ?: "Todas")
+                    append(" · ").append(state.dateFilter.label)
+                }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable { filtersExpanded = !filtersExpanded }
+                        .padding(vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Icon(Icons.Filled.Tune, contentDescription = null)
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Filtros", style = MaterialTheme.typography.titleSmall)
+                        if (!filtersExpanded) {
+                            Text(
+                                filterSummary,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
                     }
+                    Icon(
+                        if (filtersExpanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                        contentDescription = if (filtersExpanded) "Ocultar filtros" else "Mostrar filtros",
+                    )
                 }
 
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(state.status == null, { viewModel.setStatus(null) }, label = { Text("Todas") })
-                    FilterChip(state.status == PetStatus.PERDIDA, { viewModel.setStatus(PetStatus.PERDIDA) }, label = { Text("Perdida") })
-                    FilterChip(state.status == PetStatus.EN_BUSQUEDA, { viewModel.setStatus(PetStatus.EN_BUSQUEDA) }, label = { Text("En búsqueda") })
-                }
+                if (filtersExpanded) {
+                    OutlinedTextField(
+                        value = state.species,
+                        onValueChange = viewModel::setSpecies,
+                        label = { Text("Especie (perro, gato…)") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                        keyboardActions = KeyboardActions(onSearch = { viewModel.applySpecies() }),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
 
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    DateFilter.entries.forEach { df ->
-                        FilterChip(
-                            selected = state.dateFilter == df,
-                            onClick = { viewModel.setDateFilter(df) },
-                            label = { Text(df.label) },
-                        )
+                    Text("Radio", style = MaterialTheme.typography.labelMedium)
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        RADIUS_OPTIONS.forEach { km ->
+                            FilterChip(
+                                selected = state.radiusKm == km,
+                                onClick = { viewModel.setRadius(km) },
+                                label = { Text("$km km") },
+                            )
+                        }
                     }
-                }
 
-                TextButton(onClick = viewModel::useMyLocation) {
-                    Icon(Icons.Filled.MyLocation, contentDescription = null)
-                    Text(if (state.usingMyLocation) "  Usando mi ubicación" else "  Usar mi ubicación")
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilterChip(state.status == null, { viewModel.setStatus(null) }, label = { Text("Todas") })
+                        FilterChip(state.status == PetStatus.PERDIDA, { viewModel.setStatus(PetStatus.PERDIDA) }, label = { Text("Perdida") })
+                        FilterChip(state.status == PetStatus.EN_BUSQUEDA, { viewModel.setStatus(PetStatus.EN_BUSQUEDA) }, label = { Text("En búsqueda") })
+                    }
+
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        DateFilter.entries.forEach { df ->
+                            FilterChip(
+                                selected = state.dateFilter == df,
+                                onClick = { viewModel.setDateFilter(df) },
+                                label = { Text(df.label) },
+                            )
+                        }
+                    }
+
+                    TextButton(onClick = viewModel::useMyLocation) {
+                        Icon(Icons.Filled.MyLocation, contentDescription = null)
+                        Text(if (state.usingMyLocation) "  Usando mi ubicación" else "  Usar mi ubicación")
+                    }
                 }
 
                 Text(
