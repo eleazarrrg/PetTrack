@@ -26,7 +26,7 @@ Backend en **Supabase** (Auth con JWT, PostgREST, PostGIS, RLS, Storage, RPC/tri
 
 - Android Studio (Ladybug o superior) con su JBR incluido.
 - Android SDK (compileSdk 35, build-tools instaladas).
-- Un proyecto de **Supabase** con el esquema desplegado (tablas, RPCs y RLS de este proyecto).
+- *(Opcional)* Un proyecto de **Supabase** propio — solo si no quieres usar el backend compartido que ya viene embebido (ver Configuración).
 
 ## ⚙️ Configuración
 
@@ -76,7 +76,7 @@ También puedes **registrar una cuenta nueva** desde la app.
 ```bash
 ./gradlew testDebugUnitTest
 ```
-Incluye 28 pruebas unitarias (repositorios, ViewModels, refresh de token con MockWebServer y el centro de notificaciones).
+Incluye **41 pruebas unitarias** (repositorios, ViewModels, refresh de token con MockWebServer, el centro de notificaciones, el mapeo de errores y las guardas de subida HTTP).
 
 ## 📁 Estructura
 
