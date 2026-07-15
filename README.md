@@ -56,15 +56,13 @@ historial de todos sus reportes, que puede editar o eliminar.
 
 ## Capturas de pantalla
 
-Coloca las imágenes en `docs/screenshots/` con estos nombres para que se muestren aquí.
-
 | Comunidad y mapa | Reportar mascota | Detalle y avistamientos |
 |:---:|:---:|:---:|
-| <img src="docs/screenshots/comunidad.png" width="240"/> | <img src="docs/screenshots/reportar.png" width="240"/> | <img src="docs/screenshots/detalle.png" width="240"/> |
+| <img src="docs/screenshots/Comunidad.jpg" width="240"/> | <img src="docs/screenshots/Reportar.jpg" width="240"/> | <img src="docs/screenshots/Detalle.jpg" width="240"/> |
 
-| Estadísticas | Perfil |
-|:---:|:---:|
-| <img src="docs/screenshots/dashboard.png" width="240"/> | <img src="docs/screenshots/perfil.png" width="240"/> |
+| Estadísticas | Resumen ejecutivo | Perfil |
+|:---:|:---:|:---:|
+| <img src="docs/screenshots/Dashboard.jpg" width="240"/> | <img src="docs/screenshots/ResumenEjecutivo.jpg" width="240"/> | <img src="docs/screenshots/Perfil.jpg" width="240"/> |
 
 **Video demostración:** _(agrega aquí el enlace a tu video — YouTube, Drive, o un `docs/screenshots/demo.gif`)_
 
