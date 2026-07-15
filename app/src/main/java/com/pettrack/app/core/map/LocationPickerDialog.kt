@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
@@ -47,7 +48,9 @@ fun LocationPickerDialog(
         properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
-            Column(modifier = Modifier.fillMaxSize()) {
+            // Respect status/navigation bars so the Confirmar/Cancelar buttons aren't hidden
+            // behind the gesture bar at the bottom of the screen.
+            Column(modifier = Modifier.fillMaxSize().systemBarsPadding()) {
                 Text(
                     title,
                     style = MaterialTheme.typography.titleLarge,

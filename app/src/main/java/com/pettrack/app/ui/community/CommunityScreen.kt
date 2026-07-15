@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -47,6 +48,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -82,12 +84,19 @@ fun CommunityScreen(
             )
         },
     ) { padding ->
-        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-
-            Column(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
+        // One scrollable list: filters + map are header items, so scrollean y la lista de mascotas
+        // aprovecha toda la pantalla. El mapa sigue siendo arrastrable (OsmMap evita que el scroll
+        // le robe el gesto).
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().padding(padding),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(bottom = 16.dp),
+        ) {
+            item {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
                 // Collapsible filters: keep them out of the way so the list below the map isn't cramped.
                 val filterSummary = buildString {
                     if (state.species.isNotBlank()) append(state.species.trim()).append(" · ")
@@ -172,41 +181,52 @@ fun CommunityScreen(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                }
             }
 
-            OsmMap(
-                center = state.center,
-                markers = state.pets.map { MapMarker(it.id, it.latitude, it.longitude, it.name) },
-                radiusMeters = state.radiusKm * 1000.0,
-                onMarkerClick = onOpenPet,
-                onMapClick = { lat, lng -> viewModel.setCenter(lat, lng) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-                    .height(200.dp)
-                    .clip(RoundedCornerShape(12.dp)),
-            )
+            item {
+                OsmMap(
+                    center = state.center,
+                    markers = state.pets.map { MapMarker(it.id, it.latitude, it.longitude, it.name) },
+                    radiusMeters = state.radiusKm * 1000.0,
+                    onMarkerClick = onOpenPet,
+                    onMapClick = { lat, lng -> viewModel.setCenter(lat, lng) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                        .height(200.dp)
+                        .clip(RoundedCornerShape(12.dp)),
+                )
+            }
 
-            Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
-                when {
-                    state.loading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
-                    state.error != null -> Text(
+            when {
+                state.loading -> item {
+                    Box(
+                        modifier = Modifier.fillMaxWidth().padding(24.dp),
+                        contentAlignment = Alignment.Center,
+                    ) { CircularProgressIndicator() }
+                }
+                state.error != null -> item {
+                    Text(
                         state.error!!,
                         color = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.align(Alignment.Center).padding(24.dp),
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth().padding(24.dp),
                     )
-                    state.pets.isEmpty() -> Text(
+                }
+                state.pets.isEmpty() -> item {
+                    Text(
                         "No hay mascotas reportadas en esta zona.",
-                        modifier = Modifier.align(Alignment.Center).padding(24.dp),
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth().padding(24.dp),
                     )
-                    else -> LazyColumn(
-                        modifier = Modifier.fillMaxSize().padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        items(state.pets, key = { it.id }) { pet ->
-                            NearbyPetCard(pet, onClick = { onOpenPet(pet.id) })
-                        }
-                    }
+                }
+                else -> items(state.pets, key = { it.id }) { pet ->
+                    NearbyPetCard(
+                        pet,
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        onClick = { onOpenPet(pet.id) },
+                    )
                 }
             }
         }
@@ -214,8 +234,8 @@ fun CommunityScreen(
 }
 
 @Composable
-private fun NearbyPetCard(pet: NearbyPet, onClick: () -> Unit) {
-    OutlinedCard(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
+private fun NearbyPetCard(pet: NearbyPet, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    OutlinedCard(onClick = onClick, modifier = modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(12.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),

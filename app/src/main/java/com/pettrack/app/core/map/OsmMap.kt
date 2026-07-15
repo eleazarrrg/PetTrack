@@ -1,5 +1,6 @@
 package com.pettrack.app.core.map
 
+import android.view.MotionEvent
 import android.view.ViewGroup
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -81,6 +82,17 @@ fun OsmMap(
             setMultiTouchControls(true)
             setTilesScaledToDpi(true)
             setUseDataConnection(true)
+            // While the user pans/zooms the map, tell the parent (e.g. a scrolling Column) not to
+            // steal the gesture — otherwise dragging on the map scrolls the page instead of panning.
+            setOnTouchListener { view, event ->
+                when (event.actionMasked) {
+                    MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE ->
+                        view.parent?.requestDisallowInterceptTouchEvent(true)
+                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL ->
+                        view.parent?.requestDisallowInterceptTouchEvent(false)
+                }
+                false // don't consume — let osmdroid handle pan/zoom/tap
+            }
             // Stop the world from repeating so tiles don't render outside the map box.
             isHorizontalMapRepetitionEnabled = false
             isVerticalMapRepetitionEnabled = false
