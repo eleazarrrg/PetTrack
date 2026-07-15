@@ -1,67 +1,62 @@
 # PetTrack 🐾
 
-App Android para **reportar y encontrar mascotas perdidas/encontradas**, con comunidad, mapa, avistamientos, dashboard de estadísticas y notificaciones. Proyecto del Examen Semestral.
+### Reúne a las mascotas perdidas con su familia.
 
-Backend en **Supabase** (Auth con JWT, PostgREST, PostGIS, RLS, Storage, RPC/triggers), consumido desde Android con **Retrofit**.
+**PetTrack** es una aplicación móvil que convierte a toda una comunidad en una red de búsqueda: si
+tu mascota se pierde, la reportas con su foto y el punto exacto del mapa donde la viste por última
+vez, y las personas cercanas pueden ayudarte reportando **avistamientos** en tiempo real hasta
+encontrarla. 🐶🐱
 
 ---
 
-## ✨ Características
+## 📸 La app en imágenes
 
-- **Autenticación**: registro, inicio y cierre de sesión con **JWT** (expiración + refresh automático de token).
-- **Módulo Usuario**: perfil editable (nombre, cédula, teléfono, dirección) e historial de reportes.
-- **Módulo Mascota**: alta/edición/borrado con **foto**, especie, raza, edad, color, tamaño, señas particulares, collar/chip y estado (perdida / encontrada / en búsqueda).
-- **Geolocalización (GPS)**: captura de ubicación, mapa (OpenStreetMap), avistamientos e historial, radio/zona de búsqueda.
-- **Comunidad**: mascotas cercanas a una ubicación, filtros (especie, zona, fecha, estado), "reportar avistamiento" y contacto con el dueño.
-- **Dashboard**: KPIs (total/perdidas/encontradas/en búsqueda), gráfico de perdidas vs. encontradas por mes, barras por especie y raza, tiempo promedio de búsqueda y mapa de zonas con más reportes.
-- **Notificaciones**: aviso cuando alguien reporta un avistamiento de tu mascota (trigger en la base de datos → notificación local del sistema + bandeja in-app).
+<!--
+Para que el repositorio luzca ante el cliente, agrega tus capturas reales en docs/screenshots/
+con estos nombres. Mientras no existan, estas imágenes aparecerán como "rotas".
+-->
 
-## 🧱 Tecnologías
+| Comunidad y mapa | Reportar mascota | Detalle y avistamientos |
+|:---:|:---:|:---:|
+| <img src="docs/screenshots/comunidad.png" width="240"/> | <img src="docs/screenshots/reportar.png" width="240"/> | <img src="docs/screenshots/detalle.png" width="240"/> |
 
-- **Android**: Kotlin · Jetpack Compose (Material 3) · MVVM + StateFlow · Hilt · Navigation-Compose · Retrofit/OkHttp · kotlinx.serialization · Coil · osmdroid · FusedLocationProvider. `minSdk 24`, `targetSdk 35`.
-- **Backend**: Supabase — Auth (JWT), PostgREST (GET/POST/PUT/PATCH/DELETE), PostGIS, Row Level Security, Storage y RPC/triggers.
-- **Arquitectura**: capas `core / data / domain / ui`.
+| Dashboard de estadísticas | Perfil |
+|:---:|:---:|
+| <img src="docs/screenshots/dashboard.png" width="240"/> | <img src="docs/screenshots/perfil.png" width="240"/> |
 
-## ✅ Requisitos previos
+> 🎥 **Video demo:** _(añade aquí el enlace a tu video — YouTube, Drive o un `docs/screenshots/demo.gif`)_
 
-- Android Studio (Ladybug o superior) con su JBR incluido.
-- Android SDK (compileSdk 35, build-tools instaladas).
-- *(Opcional)* Un proyecto de **Supabase** propio — solo si no quieres usar el backend compartido que ya viene embebido (ver Configuración).
+---
 
-## ⚙️ Configuración
+## ✨ ¿Qué puedes hacer con PetTrack?
 
-1. **Clona** el repositorio.
-2. Abre el proyecto en **Android Studio** → Sync → **Run** en un emulador o dispositivo.
-   - Por CLI: `./gradlew assembleDebug` (genera el APK en `app/build/outputs/apk/debug/`).
+- 🔎 **Reportar una mascota perdida** con foto, descripción (especie, raza, color, tamaño, señas) y
+  la **ubicación en el mapa** donde se perdió — aunque ya no estés ahí.
+- 🗺️ **Explorar la comunidad**: mira las mascotas perdidas cerca de cualquier zona, filtra por
+  especie, distancia, estado o fecha, y **toca el mapa** para buscar en otro sector.
+- 👀 **Reportar un avistamiento**: si viste a una mascota, marca dónde y avisas a su dueño.
+- 🔔 **Recibir avisos**: el dueño recibe una **notificación** apenas alguien avista a su mascota.
+- 📞 **Contactar al dueño** directamente para coordinar la entrega.
+- 📊 **Dashboard** con estadísticas de la comunidad: mascotas perdidas vs. encontradas, por especie,
+  tiempo promedio de búsqueda y las zonas con más reportes.
 
-> ✅ **Funciona al clonar, sin pasos extra.** La app trae embebidos por defecto el `SUPABASE_URL` y la `SUPABASE_ANON_KEY` del backend compartido, así que tus amigos pueden **registrarse e iniciar sesión** apenas compilan. La `anon key` es pública por diseño (la seguridad real la dan las políticas RLS de Supabase).
+---
 
-### (Opcional) Usar tu propio Supabase
+## 🧭 ¿Cómo funciona? (en 4 pasos)
 
-Solo si quieres apuntar la app a **otro** proyecto de Supabase, copia la plantilla y sobrescribe los valores:
+1. **Crea tu cuenta** e inicia sesión.
+2. **Reporta** a tu mascota perdida con su foto y el lugar donde la viste por última vez.
+3. La **comunidad la ve** en el mapa y reporta avistamientos cuando la encuentra.
+4. **Te avisamos** con una notificación y puedes contactar a quien la vio. 🎉
 
-```bash
-cp local.properties.example local.properties
-```
+---
 
-```properties
-SUPABASE_URL=https://TU-PROYECTO.supabase.co
-SUPABASE_ANON_KEY=TU_ANON_KEY
-```
+## 📲 Probar la aplicación
 
-`local.properties` está en `.gitignore` (no se versiona). Si usas tu propio proyecto, despliega también el esquema (tablas, RPCs, RLS) y en **Authentication → Providers → Email** desactiva **"Confirm email"** para que el registro inicie sesión de inmediato.
+**Opción rápida:** instala el APK que está en `app/build/outputs/apk/debug/app-debug.apk`
+(o compílalo desde Android Studio con *Run* ▶️). Funciona apenas se instala — sin configurar nada.
 
-## 🗄️ Base de datos (Supabase)
-
-- **Tablas**: `profiles`, `pets`, `pet_photos`, `sightings`, `notifications`.
-- **Enums**: `pet_status (perdida | encontrada | en_busqueda)`, `pet_size (pequeno | mediano | grande)`.
-- **RPCs**: `pets_nearby`, `dashboard_stats`, `report_sighting`, `get_owner_contact`, `set_pet_location`.
-- **Vistas**: `pets_geo`, `sightings_geo` (proyectan lat/lng con PostGIS).
-- **Seguridad**: RLS por usuario en todas las tablas; funciones sensibles como `SECURITY DEFINER` con `search_path` fijo. Fotos en el bucket público `pet-photos`.
-
-## 👤 Cuentas de prueba (demo)
-
-Datos de ejemplo sembrados para la demostración:
+**Cuentas de demostración** (o regístrate desde la app):
 
 | Correo | Contraseña |
 |---|---|
@@ -69,25 +64,24 @@ Datos de ejemplo sembrados para la demostración:
 | `luis@pettrack.test` | `Demo1234` |
 | `marta@pettrack.test` | `Demo1234` |
 
-También puedes **registrar una cuenta nueva** desde la app.
+> Requiere Android 7.0 (o superior) y conexión a internet.
 
-## 🧪 Tests
+---
 
-```bash
-./gradlew testDebugUnitTest
-```
-Incluye **41 pruebas unitarias** (repositorios, ViewModels, refresh de token con MockWebServer, el centro de notificaciones, el mapeo de errores y las guardas de subida HTTP).
+## 🛠️ Hecho con
 
-## 📁 Estructura
+**Android nativo** en **Kotlin** + **Jetpack Compose** (Material 3), con un backend en la nube sobre
+**Supabase** (base de datos, autenticación, mapas y almacenamiento de fotos). Mapas con
+OpenStreetMap.
 
-```
-app/src/main/java/com/pettrack/app/
-├─ core/        (network, session, di, location, map, notifications, common)
-├─ data/        (remote/dto, remote/api, repository)
-├─ domain/      (modelos)
-└─ ui/          (auth, community, petdetail, pets, profile, dashboard, notifications, navigation, theme)
-```
+📄 **¿Detalles técnicos?** Todo el stack, la arquitectura, la estructura del código, el backend y
+cómo compilar están explicados en **[`PRESENTACION_EXAMEN.md`](PRESENTACION_EXAMEN.md)** y, paso a
+paso, en **[`DOCUMENTACION_PETTRACK.md`](DOCUMENTACION_PETTRACK.md)**.
 
-## 📄 Licencia
+---
 
-Proyecto académico (Examen Semestral).
+## 👥 Equipo
+
+Proyecto desarrollado para el **Examen Semestral** — _(agrega aquí los nombres del equipo)_.
+
+<p align="center"><sub>Hecho con 🐾 para ayudar a que ninguna mascota se quede sin volver a casa.</sub></p>
