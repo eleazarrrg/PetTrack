@@ -1,5 +1,6 @@
 package com.pettrack.app.ui.community
 
+import android.Manifest
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -40,6 +41,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -54,12 +56,15 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.isGranted
+import com.google.accompanist.permissions.rememberPermissionState
 import com.pettrack.app.core.map.MapMarker
 import com.pettrack.app.core.map.OsmMap
 import com.pettrack.app.domain.model.NearbyPet
 import com.pettrack.app.domain.model.PetStatus
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class, ExperimentalPermissionsApi::class)
 @Composable
 fun CommunityScreen(
     onOpenPet: (String) -> Unit,
@@ -69,6 +74,16 @@ fun CommunityScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var filtersExpanded by rememberSaveable { mutableStateOf(false) }
+    val locationPermission = rememberPermissionState(Manifest.permission.ACCESS_FINE_LOCATION)
+    var pendingMyLocation by rememberSaveable { mutableStateOf(false) }
+
+    // "Usar mi ubicación" pide el permiso si falta y captura la ubicación al concederlo.
+    LaunchedEffect(locationPermission.status.isGranted) {
+        if (pendingMyLocation && locationPermission.status.isGranted) {
+            pendingMyLocation = false
+            viewModel.useMyLocation()
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -170,7 +185,16 @@ fun CommunityScreen(
                         }
                     }
 
-                    TextButton(onClick = viewModel::useMyLocation) {
+                    TextButton(
+                        onClick = {
+                            if (locationPermission.status.isGranted) {
+                                viewModel.useMyLocation()
+                            } else {
+                                pendingMyLocation = true
+                                locationPermission.launchPermissionRequest()
+                            }
+                        },
+                    ) {
                         Icon(Icons.Filled.MyLocation, contentDescription = null)
                         Text(if (state.usingMyLocation) "  Usando mi ubicación" else "  Usar mi ubicación")
                     }
